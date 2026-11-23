@@ -25,3 +25,9 @@ npm run check:sheets
 배포 파일은 `docs/`에 있습니다. 저장소의 **Settings → Pages → Build and deployment**에서 **Deploy from a branch**, **main**, **/docs**를 선택하고 저장합니다.
 
 기본 화면의 기록은 현재 브라우저에 저장됩니다. **예시 보기**는 별도의 체험 모드입니다. 기존 Google Sheets 연결 확인 스크립트는 로컬에서 사용할 수 있으며, 공개 페이지에서 Sheets로 동기화하려면 별도의 사용자 인증 설정이 필요합니다.
+
+### 배포 화면에서 시트 기록 읽기
+
+Google Cloud 프로젝트에서 Google Sheets API를 활성화합니다. OAuth 웹 애플리케이션 클라이언트를 만들고 승인된 JavaScript 원본에 `https://iamny713.github.io`를 추가합니다. OAuth 동의 화면이 테스트 상태라면 사용할 Google 계정을 테스트 사용자로 등록합니다.
+
+배포 화면에서 **Google 스프레드시트 연결**을 열고 웹 클라이언트 ID를 입력한 뒤 Google로 로그인합니다. 로그인 계정에는 기존 시트에 대한 읽기 권한이 있어야 합니다. 시트 보기와 브라우저 기록은 각각 전환할 수 있습니다.

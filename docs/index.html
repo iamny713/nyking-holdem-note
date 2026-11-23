@@ -18,6 +18,15 @@
       <span>Google 스프레드시트 동기화 대기 중 · 이 브라우저에 저장</span>
       <button type="button" data-export>기록 백업</button>
     </div>
+    <details class="sheet-connection" data-sheet-panel hidden>
+      <summary>Google 스프레드시트 연결</summary>
+      <label>Google OAuth 웹 클라이언트 ID
+        <input data-sheet-client type="text" autocomplete="off" placeholder="…apps.googleusercontent.com">
+      </label>
+      <button type="button" data-sheet-load>Google 로그인 · 시트 불러오기</button>
+      <button type="button" data-sheet-local hidden>브라우저 기록으로 돌아가기</button>
+      <p data-sheet-status role="status"></p>
+    </details>
     <section aria-labelledby="hn-stats">
       <h2 id="hn-stats">참가 성과</h2>
       <div class="scope">

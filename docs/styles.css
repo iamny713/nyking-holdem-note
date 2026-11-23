@@ -86,3 +86,7 @@ body { margin:0; padding:clamp(0px,3vw,28px); background:light-dark(#ecf2fb,#0c1
 #holdem-preview [data-storage-status] { margin:0; color:var(--hn-loss) }
 #holdem-preview [data-storage-status]:empty { display:none }
 #holdem-preview .backup:not([hidden]) { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; color:var(--hn-muted); font-size:13px }
+#holdem-preview .sheet-connection { padding:10px 14px; border:1px solid var(--hn-line); border-radius:10px; background:var(--hn-panel) }
+#holdem-preview .sheet-connection button { margin:8px 0 0 }
+#holdem-preview .sheet-connection p { margin:8px 0 0 }
+#holdem-preview .sheet-connection p:empty { display:none }
