@@ -18,4 +18,4 @@ npm run check:sheets
 
 ## GitHub 원격 저장소
 
-이 작업공간의 `origin`은 `iamny713/holdem-note`로 설정되어 있습니다. 해당 이름으로 빈 비공개 저장소를 만든 뒤, 쓰기 권한이 있는 GitHub 인증 환경에서 `git push -u origin main`을 실행합니다.
+이 프로젝트의 원격 저장소는 [iamny713/nyking-holdem-note](https://github.com/iamny713/nyking-holdem-note)입니다. `main`은 `origin/main`을 추적합니다.
