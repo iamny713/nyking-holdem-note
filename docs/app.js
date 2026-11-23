@@ -38,6 +38,8 @@
   const demo = new URLSearchParams(location.search).has('demo');
   let rows = demo ? sampleRows : [];
   const venues = new Set(rows.map(row => row[1]));
+  const sessionKey = 'nyking-holdem-note:google-session';
+  const connectionLabel = root.querySelector('.demo');
   let token = '';
   let busy = false;
   let sheetReady = false;
@@ -46,6 +48,14 @@
   const sheetMessage = root.querySelector('[data-sheet-status]');
   const load = root.querySelector('[data-sheet-load]');
 
+  function clearGoogleSession() {
+    token = '';
+    sheetReady = false;
+    dashboard.hidden = true;
+    connectionLabel.textContent = 'Google Sheets 다시 연결 필요';
+    try { sessionStorage.removeItem(sessionKey); } catch {}
+  }
+
   async function sheetRequest(range, method = 'GET', body, query = '') {
     const response = await fetch(sheetUrl + '/values/' + encodeURIComponent(range) + query, {
       method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -53,9 +63,7 @@
     });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        sheetReady = false;
-        dashboard.hidden = true;
-        token = '';
+        clearGoogleSession();
       }
       throw new Error('Google Sheets 요청 실패 (' + response.status + '). 시트 편집 권한과 Google 인증을 확인하세요.');
     }
@@ -374,7 +382,7 @@
         body: JSON.stringify({ values: [row] }), signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) token = '';
+        if (response.status === 401 || response.status === 403) clearGoogleSession();
         throw new Error('시트에 기록을 추가하지 못했습니다 (' + response.status + ').');
       }
     })) return;
@@ -397,12 +405,52 @@
     panel.open = true;
     dashboard.hidden = true;
 
+    const validClientId = value => /^[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/.test(value);
+
+    function rememberClientId() {
+      const clientId = input.value.trim();
+      if (validClientId(clientId)) {
+        try { localStorage.setItem(clientKey, clientId); } catch {}
+      }
+    }
+
+    input.addEventListener('input', rememberClientId);
+
+    async function showConnectedSheet() {
+      await refreshSheet();
+      message.textContent = '시트 기록 ' + rows.length + '건을 불러왔습니다.';
+      connectionLabel.textContent = 'Google Sheets 연결됨';
+    }
+
+    async function restoreGoogleSession() {
+      let session;
+      try { session = JSON.parse(sessionStorage.getItem(sessionKey)); } catch {}
+      if (!session) return;
+      if (session.clientId !== input.value.trim() || typeof session.token !== 'string'
+        || !Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now()) {
+        clearGoogleSession();
+        message.textContent = 'Google 로그인으로 다시 연결하세요.';
+        return;
+      }
+      token = session.token;
+      load.disabled = true;
+      message.textContent = 'Google Sheets 연결을 복원 중입니다.';
+      try {
+        await showConnectedSheet();
+      } catch (error) {
+        message.textContent = error.message;
+      } finally {
+        load.disabled = false;
+      }
+    }
+
     load.addEventListener('click', async () => {
       const clientId = input.value.trim();
-      if (!/^[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/.test(clientId)) {
+      if (!validClientId(clientId)) {
         message.textContent = 'Google Cloud에서 만든 웹 클라이언트 ID를 입력하세요.';
         return;
       }
+      rememberClientId();
       load.disabled = true;
       message.textContent = 'Google 인증을 준비 중입니다.';
       try {
@@ -418,25 +466,28 @@
           document.head.append(script);
         });
         await googleScript;
-        token = await new Promise((resolve, reject) => {
+        const authorization = await new Promise((resolve, reject) => {
           google.accounts.oauth2.initTokenClient({
             client_id: clientId,
             scope: 'https://www.googleapis.com/auth/spreadsheets',
-            callback: response => response.access_token ? resolve(response.access_token)
+            callback: response => response.access_token ? resolve(response)
               : reject(new Error('Google 인증을 완료하지 못했습니다.')),
             error_callback: () => reject(new Error('Google 로그인 창을 열거나 완료하지 못했습니다.')),
           }).requestAccessToken();
         });
-        await refreshSheet();
-        try { localStorage.setItem(clientKey, clientId); } catch {}
-        message.textContent = '시트 기록 ' + rows.length + '건을 불러왔습니다.';
-        root.querySelector('.demo').textContent = 'Google Sheets 연결됨';
+        token = authorization.access_token;
+        const expiresAt = Date.now() + Number(authorization.expires_in) * 1000 - 30000;
+        if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+          try { sessionStorage.setItem(sessionKey, JSON.stringify({ clientId, token, expiresAt })); } catch {}
+        }
+        await showConnectedSheet();
       } catch (error) {
         message.textContent = error.message;
       } finally {
         load.disabled = false;
-        }
+      }
     });
+    void restoreGoogleSession();
 
     root.querySelector('[data-backup]').hidden = false;
     root.querySelector('[data-export]').addEventListener('click', () => {
