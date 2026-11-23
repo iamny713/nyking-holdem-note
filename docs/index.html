@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>노유킹 홀덤 노트</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+<div id="holdem-preview" lang="ko">
+  <header class="mast">
+    <span class="mark" aria-hidden="true">♠</span><span class="brand">노유킹 홀덤 노트</span><span class="demo">이 브라우저에 저장</span><a class="mode-link" data-mode-link href="?demo">예시 보기</a>
+  </header>
+  <div class="content">
+    <p data-storage-status role="alert"></p>
+    <section aria-labelledby="hn-stats">
+      <h2 id="hn-stats">참가 성과</h2>
+      <div class="scope">
+        <label>통계 구분<select data-scope><option value="all">전체</option><option value="month">월별</option><option value="venue">홀덤펍별</option></select></label>
+        <label data-choice-label hidden><span></span><select data-choice></select></label>
+      </div>
+      <div class="metrics" aria-live="polite">
+        <div class="metric"><span>참가 횟수</span><strong data-metric="games"></strong></div>
+        <div class="metric"><span>평균 상위 비율</span><strong data-metric="rank"></strong></div>
+        <div class="metric"><span>인머니 비율</span><strong data-metric="itm"></strong><span data-itm-count></span></div>
+        <div class="metric"><span>현금 바이인 회수율</span><strong data-metric="recovery"></strong><span>현금 프라이즈 ÷ 현금 바이인</span></div>
+      </div>
+      <details class="finance">
+        <summary>정산 상세 · 비용과 손익 추이</summary>
+        <div class="metrics" aria-live="polite">
+          <div class="metric"><span>총 바이인 (현금)</span><strong data-metric="buyin"></strong></div>
+          <div class="metric"><span>총 현금 프라이즈</span><strong data-metric="prize"></strong></div>
+          <div class="metric"><span>획득 티켓 가치</span><strong data-metric="tickets"></strong></div>
+          <div class="metric"><span>현금 순손익</span><strong data-metric="net"></strong></div>
+          <div class="metric"><span>티켓 포함 순손익</span><strong data-metric="adjusted"></strong></div>
+        </div>
+        <div class="panel chart">
+          <div class="chart-head"><h2 id="hn-chart-title">누적 순손익 추이</h2>
+            <select data-chart-mode aria-label="순손익 기준"><option value="cash">현금 기준</option><option value="ticket">티켓 포함</option></select>
+          </div>
+          <div class="chart-units">원 · 경기일 기준</div>
+          <svg role="img" aria-labelledby="hn-chart-title hn-chart-desc"></svg>
+        </div>
+      </details>
+    </section>
+    <div class="columns">
+      <section class="panel" aria-labelledby="hn-log">
+        <h2 id="hn-log">경기 기록</h2>
+        <div class="record-status"><p data-record-status role="status"></p><button type="button" class="quiet undo" hidden>실행 취소</button></div>
+        <div class="scroll">
+          <table aria-labelledby="hn-log">
+            <thead><tr><th scope="col">경기일</th><th scope="col">홀덤펍</th><th scope="col">바이인</th><th scope="col">총 엔트리</th><th scope="col">등수</th><th scope="col">보상</th><th scope="col">관리</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <nav class="pager" aria-label="경기 기록 페이지" hidden>
+          <button type="button" data-step="-1">이전</button>
+          <output aria-live="polite"></output>
+          <button type="button" data-step="1">다음</button>
+        </nav>
+      </section>
+      <section class="panel entry" aria-labelledby="hn-entry">
+        <h2 id="hn-entry">새 경기 기록</h2>
+        <form>
+          <label class="wide">경기일<input type="date" name="date" required></label>
+          <label class="wide">홀덤펍 이름<select name="venueChoice" required></select></label>
+          <label class="wide" data-new-venue hidden>새 홀덤펍 이름<input name="venue" disabled maxlength="40" placeholder="예: 강남 포커룸"></label>
+          <label>현금 바이인 (원)<input type="number" name="buyin" min="0" max="999999999" step="1" placeholder="50000" required></label>
+          <label>총 엔트리<input type="number" name="entries" min="1" max="99999" step="1" placeholder="48" required></label>
+          <label>결과 등수<input type="number" name="place" min="1" step="1" placeholder="3" required></label>
+          <label>현금 프라이즈 (원)<input type="number" name="prize" min="0" max="999999999" step="1" value="0" required></label>
+          <details class="wide">
+            <summary>티켓 기록</summary>
+            <label>획득한 티켓 가치 (원)<input type="number" name="ticketWon" min="0" max="999999999" step="1" placeholder="본선 바이인 금액"></label>
+            <label>사용한 티켓 가치 (원)<input type="number" name="ticketUsed" min="0" max="999999999" step="1" placeholder="획득 시 기록한 금액"></label>
+          </details>
+          <button class="wide" type="submit">기록 추가</button>
+          <p class="wide" role="status"></p>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>

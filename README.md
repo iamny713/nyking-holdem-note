@@ -19,3 +19,9 @@ npm run check:sheets
 ## GitHub 원격 저장소
 
 이 프로젝트의 원격 저장소는 [iamny713/nyking-holdem-note](https://github.com/iamny713/nyking-holdem-note)입니다. `main`은 `origin/main`을 추적합니다.
+
+## GitHub Pages
+
+배포 파일은 `docs/`에 있습니다. 저장소의 **Settings → Pages → Build and deployment**에서 **Deploy from a branch**, **main**, **/docs**를 선택하고 저장합니다.
+
+기본 화면의 기록은 현재 브라우저에 저장됩니다. **예시 보기**는 별도의 체험 모드입니다. 기존 Google Sheets 연결 확인 스크립트는 로컬에서 사용할 수 있으며, 공개 페이지에서 Sheets로 동기화하려면 별도의 사용자 인증 설정이 필요합니다.
