@@ -310,6 +310,20 @@
     fields.place.removeAttribute('max');
     status.textContent = venue + ' 경기 기록을 추가했습니다.';
   });
+  if (!demo) {
+    root.querySelector('[data-backup]').hidden = false;
+    root.querySelector('[data-export]').addEventListener('click', () => {
+      const data = JSON.stringify({ version: 1, rows, venues: [...venues] }, null, 2);
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'nyking-holdem-note-backup.json';
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+  }
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
   fields.date.defaultValue = today;
   fields.date.value = today;

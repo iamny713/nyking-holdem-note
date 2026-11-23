@@ -85,3 +85,4 @@ body { margin:0; padding:clamp(0px,3vw,28px); background:light-dark(#ecf2fb,#0c1
 #holdem-preview .mode-link { color:#ecf5ff; font-size:12px }
 #holdem-preview [data-storage-status] { margin:0; color:var(--hn-loss) }
 #holdem-preview [data-storage-status]:empty { display:none }
+#holdem-preview .backup:not([hidden]) { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; color:var(--hn-muted); font-size:13px }
