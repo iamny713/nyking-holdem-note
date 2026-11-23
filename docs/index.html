@@ -4,19 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>노유킹 홀덤 노트</title>
-  <link rel="stylesheet" href="./styles.css">
-  <script defer src="./app.js"></script>
+  <link rel="stylesheet" href="./styles.css?v=2">
+  <script defer src="./app.js?v=2"></script>
 </head>
 <body>
 <div id="holdem-preview" lang="ko">
   <header class="mast">
-    <span class="mark" aria-hidden="true">♠</span><span class="brand">노유킹 홀덤 노트</span><span class="demo">이 브라우저에 저장</span><a class="mode-link" data-mode-link href="?demo">예시 보기</a>
+    <span class="mark" aria-hidden="true">♠</span><span class="brand">노유킹 홀덤 노트</span><span class="demo">Google Sheets 연결 필요</span><a class="mode-link" data-mode-link href="?demo">예시 보기</a>
   </header>
   <div class="content">
-    <p data-storage-status role="alert"></p>
     <div class="backup" data-backup hidden>
-      <span>Google 스프레드시트 동기화 대기 중 · 이 브라우저에 저장</span>
-      <button type="button" data-export>기록 백업</button>
+      <span>Google 스프레드시트 동기화 대기 중 · Google Sheets 연결 필요</span>
+      <button type="button" data-export>이전 기록 백업</button>
     </div>
     <details class="sheet-connection" data-sheet-panel hidden>
       <summary>Google 스프레드시트 연결</summary>
@@ -24,9 +23,9 @@
         <input data-sheet-client type="text" autocomplete="off" placeholder="…apps.googleusercontent.com">
       </label>
       <button type="button" data-sheet-load>Google 로그인 · 시트 불러오기</button>
-      <button type="button" data-sheet-local hidden>브라우저 기록으로 돌아가기</button>
       <p data-sheet-status role="status"></p>
     </details>
+    <div class="dashboard" data-dashboard hidden>
     <section aria-labelledby="hn-stats">
       <h2 id="hn-stats">참가 성과</h2>
       <div class="scope">
@@ -92,6 +91,7 @@
           <p class="wide" role="status"></p>
         </form>
       </section>
+    </div>
     </div>
   </div>
 </div>

@@ -36,29 +36,92 @@
   });
   const storageKey = 'nyking-holdem-note:v1';
   const demo = new URLSearchParams(location.search).has('demo');
-  const storageStatus = root.querySelector('[data-storage-status]');
   let rows = demo ? sampleRows : [];
-  let savedVenues = [];
-  try {
-    const saved = demo ? null : JSON.parse(localStorage.getItem(storageKey));
-    if (saved) {
-      rows = saved.rows;
-      savedVenues = saved.venues;
-    }
-  } catch {
-    storageStatus.textContent = '브라우저에 저장된 기록을 읽을 수 없습니다.';
-  }
-  let sheetMode = false;
-  const venues = new Set([...savedVenues, ...rows.map(row => row[1])]);
+  const venues = new Set(rows.map(row => row[1]));
+  let token = '';
+  let busy = false;
+  let sheetReady = false;
+  const sheetUrl = 'https://sheets.googleapis.com/v4/spreadsheets/1lKynWvfuX9dGxWdPKiVeIk0hiKb2QqHFX5GRQMmEr6Q';
+  const dashboard = root.querySelector('[data-dashboard]');
+  const sheetMessage = root.querySelector('[data-sheet-status]');
+  const load = root.querySelector('[data-sheet-load]');
 
-  function saveRecords() {
-    if (demo) return;
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({ rows, venues: [...venues] }));
-      storageStatus.textContent = '';
-    } catch {
-      storageStatus.textContent = '브라우저 저장에 실패했습니다. 변경 사항은 이 화면에만 있습니다.';
+  async function sheetRequest(range, method = 'GET', body, query = '') {
+    const response = await fetch(sheetUrl + '/values/' + encodeURIComponent(range) + query, {
+      method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: body && JSON.stringify(body), signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        sheetReady = false;
+        dashboard.hidden = true;
+        token = '';
+      }
+      throw new Error('Google Sheets 요청 실패 (' + response.status + '). 시트 편집 권한과 Google 인증을 확인하세요.');
     }
+    return response.json();
+  }
+
+  async function refreshSheet() {
+    const { values = [] } = await sheetRequest("'기록'!A2:I", 'GET', undefined, '?valueRenderOption=UNFORMATTED_VALUE');
+    const imported = [];
+    for (const [index, raw] of values.entries()) {
+      if (!raw.some(value => value !== '') || raw[8] === '삭제') continue;
+      const date = typeof raw[0] === 'number'
+        ? new Date(Date.UTC(1899, 11, 30) + Math.floor(raw[0]) * 86400000).toISOString().slice(0, 10)
+        : raw[0];
+      const numbers = Array.from({ length: 6 }, (_, column) => Number(raw[column + 2] ?? 0));
+      const [, entries, place] = numbers;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || typeof raw[1] !== 'string' || !raw[1].trim()
+        || numbers.some(number => !Number.isSafeInteger(number) || number < 0) || place < 1 || place > entries) {
+        throw new Error('기록 탭 ' + (index + 2) + '행의 날짜, 금액 또는 등수 형식을 확인하세요.');
+      }
+      const row = [date, raw[1], ...numbers];
+      row.sheetRow = index + 2;
+      row.raw = raw.slice(0, 8);
+      imported.push(row);
+    }
+    rows = imported.sort((a, b) => b[0].localeCompare(a[0]));
+    venues.clear();
+    rows.forEach(row => venues.add(row[1]));
+    renderVenueOptions();
+    sheetReady = true;
+    dashboard.hidden = false;
+    render();
+  }
+
+  async function mutateSheet(write) {
+    if (!sheetReady || busy) return false;
+    busy = true;
+    load.disabled = true;
+    dashboard.inert = true;
+    let written = false;
+    try {
+      await write();
+      written = true;
+      await refreshSheet();
+      sheetMessage.textContent = 'Google 스프레드시트에 저장했습니다.';
+      return true;
+    } catch (error) {
+      sheetReady = false;
+      dashboard.hidden = true;
+      sheetMessage.textContent = (written ? '시트에 저장했지만 ' : '') + error.message + ' 다시 불러와 기록을 확인하세요.';
+      return false;
+    } finally {
+      busy = false;
+      load.disabled = false;
+      dashboard.inert = false;
+    }
+  }
+
+  async function setDeleted(row, remove) {
+    const range = "'기록'!A" + row.sheetRow + ':I' + row.sheetRow;
+    const { values } = await sheetRequest(range, 'GET', undefined, '?valueRenderOption=UNFORMATTED_VALUE');
+    const current = values?.[0] ?? [];
+    if (JSON.stringify(current.slice(0, 8)) !== JSON.stringify(row.raw) || (current[8] === '삭제') === remove) {
+      throw new Error('시트에서 해당 기록이 변경되었습니다.');
+    }
+    await sheetRequest("'기록'!I" + row.sheetRow, 'PUT', { values: [[remove ? '삭제' : '']] }, '?valueInputOption=RAW');
   }
   const isInMoney = row => row[5] > 0 || (row[6] ?? 0) > 0;
 
@@ -228,21 +291,18 @@
         detail.textContent = '티켓 ' + money.format(amount);
         tr.cells[index].append(detail);
       }
-      if (sheetMode) {
-        tr.insertCell().textContent = '—';
-        continue;
-      }
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'quiet';
       remove.textContent = '삭제';
       remove.setAttribute('aria-label', date + ' ' + venue + ' 경기 기록 삭제');
-      remove.addEventListener('click', () => {
+      remove.addEventListener('click', async () => {
         const index = rows.indexOf(row);
+        if (demo) {
+          rows.splice(index, 1);
+          render();
+        } else if (!await mutateSheet(() => setDeleted(row, true))) return;
         deleted = { row, index };
-        rows.splice(index, 1);
-        saveRecords();
-        render();
         recordStatus.textContent = date + ' ' + venue + ' 기록을 삭제했습니다.';
         undo.hidden = false;
         undo.focus();
@@ -259,9 +319,10 @@
     });
   }
   chartMode.addEventListener('change', drawChart);
-  undo.addEventListener('click', () => {
-    rows.splice(deleted.index, 0, deleted.row);
-    saveRecords();
+  undo.addEventListener('click', async () => {
+    if (!deleted) return;
+    if (demo) rows.splice(deleted.index, 0, deleted.row);
+    else if (!await mutateSheet(() => setDeleted(deleted.row, false))) return;
     deleted = undefined;
     rows.sort((a, b) => b[0].localeCompare(a[0]));
     render();
@@ -288,7 +349,7 @@
     if (!fields.venue.disabled) fields.venue.focus();
   });
   fields.venue.addEventListener('input', () => fields.venue.setCustomValidity(''));
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const venue = fields.venueChoice.value === newVenueOption
       ? fields.venue.value.trim()
@@ -303,12 +364,22 @@
       fields.place.valueAsNumber, fields.prize.valueAsNumber,
       Number(fields.ticketWon.value), Number(fields.ticketUsed.value)];
     page = 0;
-    rows.unshift(row);
+    if (demo) {
+      rows.unshift(row);
+      rows.sort((a, b) => b[0].localeCompare(a[0]));
+      venues.add(venue);
+    } else if (!await mutateSheet(async () => {
+      const response = await fetch(sheetUrl + "/values/" + encodeURIComponent("'기록'!A:H") + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS", {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [row] }), signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) token = '';
+        throw new Error('시트에 기록을 추가하지 못했습니다 (' + response.status + ').');
+      }
+    })) return;
     if (scope.value !== 'all') selection[scope.value] = group(row);
-    rows.sort((a, b) => b[0].localeCompare(a[0]));
     render();
-    venues.add(venue);
-    saveRecords();
     form.reset();
     renderVenueOptions(venue);
     fields.date.value = date;
@@ -318,35 +389,14 @@
   if (!demo) {
     const panel = root.querySelector('[data-sheet-panel]');
     const input = root.querySelector('[data-sheet-client]');
-    const load = root.querySelector('[data-sheet-load]');
-    const local = root.querySelector('[data-sheet-local]');
-    const message = root.querySelector('[data-sheet-status]');
-    const backup = root.querySelector('[data-backup]');
-    const localRows = rows;
+    const message = sheetMessage;
     const clientKey = 'nyking-holdem-note:google-client';
     let googleScript;
     try { input.value = localStorage.getItem(clientKey) || ''; } catch {}
     panel.hidden = false;
+    panel.open = true;
+    dashboard.hidden = true;
 
-    function showSource(isSheet, sourceRows) {
-      sheetMode = isSheet;
-      rows = sourceRows;
-      form.closest('.entry').hidden = isSheet;
-      backup.hidden = isSheet;
-      local.hidden = !isSheet;
-      undo.hidden = isSheet || !deleted;
-      recordStatus.textContent = '';
-      root.querySelector('.demo').textContent = isSheet ? 'Google Sheets · 읽기 전용' : '이 브라우저에 저장';
-      scope.value = 'all';
-      page = 0;
-      render();
-    }
-
-    local.addEventListener('click', () => {
-      showSource(false, localRows);
-      message.textContent = '';
-      load.focus();
-    });
     load.addEventListener('click', async () => {
       const clientId = input.value.trim();
       if (!/^[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/.test(clientId)) {
@@ -354,7 +404,6 @@
         return;
       }
       load.disabled = true;
-      local.disabled = true;
       message.textContent = 'Google 인증을 준비 중입니다.';
       try {
         googleScript ??= new Promise((resolve, reject) => {
@@ -369,52 +418,35 @@
           document.head.append(script);
         });
         await googleScript;
-        const token = await new Promise((resolve, reject) => {
+        token = await new Promise((resolve, reject) => {
           google.accounts.oauth2.initTokenClient({
             client_id: clientId,
-            scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+            scope: 'https://www.googleapis.com/auth/spreadsheets',
             callback: response => response.access_token ? resolve(response.access_token)
               : reject(new Error('Google 인증을 완료하지 못했습니다.')),
             error_callback: () => reject(new Error('Google 로그인 창을 열거나 완료하지 못했습니다.')),
           }).requestAccessToken();
         });
-        const id = '1lKynWvfuX9dGxWdPKiVeIk0hiKb2QqHFX5GRQMmEr6Q';
-        const range = encodeURIComponent("'기록'!A2:H");
-        const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + id + '/values/' + range + '?valueRenderOption=UNFORMATTED_VALUE', {
-          headers: { Authorization: 'Bearer ' + token },
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!response.ok) throw new Error('시트를 읽을 수 없습니다. Google Sheets API 설정과 계정의 시트 접근 권한을 확인하세요.');
-        const { values = [] } = await response.json();
-        const imported = values.filter(row => row.some(value => value !== '')).map(row => {
-          const date = typeof row[0] === 'number'
-            ? new Date(Date.UTC(1899, 11, 30) + Math.floor(row[0]) * 86400000).toISOString().slice(0, 10)
-            : row[0];
-          const venue = row[1];
-          const numbers = Array.from({ length: 6 }, (_, index) => Number(row[index + 2] ?? 0));
-          const [, entries, place] = numbers;
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || typeof venue !== 'string' || !venue.trim()
-            || numbers.some(number => !Number.isSafeInteger(number) || number < 0)
-            || place < 1 || place > entries) {
-            throw new Error('기록 탭에 날짜, 금액 또는 등수 형식이 맞지 않는 행이 있습니다.');
-          }
-          return [date, venue, ...numbers];
-        });
-        imported.sort((a, b) => b[0].localeCompare(a[0]));
+        await refreshSheet();
         try { localStorage.setItem(clientKey, clientId); } catch {}
-        showSource(true, imported);
-        message.textContent = '시트 기록 ' + imported.length + '건을 불러왔습니다. 다시 누르면 최신 기록을 읽습니다.';
+        message.textContent = '시트 기록 ' + rows.length + '건을 불러왔습니다.';
+        root.querySelector('.demo').textContent = 'Google Sheets 연결됨';
       } catch (error) {
         message.textContent = error.message;
       } finally {
         load.disabled = false;
-        local.disabled = false;
-      }
+        }
     });
 
     root.querySelector('[data-backup]').hidden = false;
     root.querySelector('[data-export]').addEventListener('click', () => {
-      const data = JSON.stringify({ version: 1, rows, venues: [...venues] }, null, 2);
+      let saved;
+      try { saved = JSON.parse(localStorage.getItem(storageKey)); } catch {}
+      if (!Array.isArray(saved?.rows)) {
+        sheetMessage.textContent = '이 브라우저에 백업할 이전 기록이 없습니다.';
+        return;
+      }
+      const data = JSON.stringify({ version: 1, rows: saved.rows, venues: saved.venues ?? [] }, null, 2);
       const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
       const link = document.createElement('a');
       link.href = url;
@@ -429,6 +461,7 @@
   fields.date.defaultValue = today;
   fields.date.value = today;
   if (demo) {
+    dashboard.hidden = false;
     root.querySelector('.demo').textContent = '예시 데이터';
     root.querySelector('[data-mode-link]').textContent = '내 기록으로';
     root.querySelector('[data-mode-link]').href = './';

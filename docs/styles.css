@@ -90,3 +90,4 @@ body { margin:0; padding:clamp(0px,3vw,28px); background:light-dark(#ecf2fb,#0c1
 #holdem-preview .sheet-connection button { margin:8px 0 0 }
 #holdem-preview .sheet-connection p { margin:8px 0 0 }
 #holdem-preview .sheet-connection p:empty { display:none }
+#holdem-preview .dashboard:not([hidden]) { display:grid; gap:22px }
